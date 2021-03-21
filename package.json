@@ -1,16 +1,18 @@
 {
-  "name": "idle-subgraph",
+  "name": "idle-finance",
   "license": "UNLICENSED",
   "scripts": {
     "codegen": "graph codegen",
     "build": "graph build",
-    "deploy": "graph deploy --node https://api.thegraph.com/deploy/ --ipfs https://api.thegraph.com/ipfs/ AsafSilman/idle-subgraph",
-    "create-local": "graph create --node http://localhost:8020/ AsafSilman/idle-subgraph",
-    "remove-local": "graph remove --node http://localhost:8020/ AsafSilman/idle-subgraph",
-    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 AsafSilman/idle-subgraph"
+    "prepare": "mustache config/mainnet.json subgraph.template.yaml > subgraph.yaml",
+    "deploy": "graph deploy --node https://api.thegraph.com/deploy/ --ipfs https://api.thegraph.com/ipfs/ AsafSilman/idle-finance",
+    "create-local": "graph create --node http://localhost:8020/ AsafSilman/idle-finance",
+    "remove-local": "graph remove --node http://localhost:8020/ AsafSilman/idle-finance",
+    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 AsafSilman/idle-finance"
   },
   "dependencies": {
     "@graphprotocol/graph-cli": "0.20.0",
-    "@graphprotocol/graph-ts": "0.20.0"
+    "@graphprotocol/graph-ts": "0.20.0",
+    "mustache": "^4.1.0"
   }
 }

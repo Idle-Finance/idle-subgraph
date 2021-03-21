@@ -1,6 +1,15 @@
-type ExampleEntity @entity {
+type User @entity {
   id: ID!
-  count: BigInt!
-  previousAdmin: Bytes! # address
-  newAdmin: Bytes! # address
+  firstInteractionTimestamp: BingInt!
+  tokens: [UserToken]! @derivedFrom(field: "user")
+}
+
+type UserToken @entity {
+  id: ID!
+  user: User!
+  token: Token!
+}
+
+type Token @entity {
+
 }
