@@ -1,6 +1,6 @@
 type User @entity {
   id: ID!
-  firstInteractionTimestamp: BingInt!
+  firstInteractionTimestamp: BigInt!
   tokens: [UserToken]! @derivedFrom(field: "user")
 }
 
@@ -8,8 +8,11 @@ type UserToken @entity {
   id: ID!
   user: User!
   token: Token!
+  balance: BigInt
 }
 
 type Token @entity {
-
+  id: ID!
+  address: Bytes!
+  name: String
 }

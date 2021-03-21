@@ -2,21 +2,23 @@ specVersion: 0.0.2
 description: "Idle.finance: Earn the yield you deserve without worry about finding the best option, either if you want to optimize returns or risks."
 schema:
   file: ./schema.graphql
-{{#tokens}}
 dataSources:
+  {{#tokens}}
   - kind: ethereum/contract
     name: {{name}}
     network: mainnet
     source:
       address: "{{address}}"
       abi: IdleTokenGovernance
-      startBlock: 10595640
+      startBlock: {{startBlock}}
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.4
       language: wasm/assemblyscript
       entities:
-        - TransferEntity
+        - User
+        - UserToken
+        - Token
       abis:
         - name: IdleTokenGovernance
           file: ./abis/IdleTokenGovernance.json
@@ -24,4 +26,4 @@ dataSources:
         - event: Transfer(indexed address,indexed address,uint256)
           handler: handleTransfer
       file: ./src/mapping.ts
-{{/tokens}}
+  {{/tokens}}
