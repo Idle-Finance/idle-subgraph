@@ -1,18 +1,39 @@
 type User @entity {
   id: ID!
-  firstInteractionTimestamp: BigInt!
+  address: Bytes
+  firstInteractionTimestamp: BigInt
   tokens: [UserToken]! @derivedFrom(field: "user")
 }
 
 type UserToken @entity {
   id: ID!
-  user: User!
-  token: Token!
+  user: User
+  token: Token
   balance: BigInt
 }
 
 type Token @entity {
   id: ID!
-  address: Bytes!
+  address: Bytes
   name: String
+  lastPrice: BigInt
+  lastPriceTimestamp: BigInt
+
+  totalSupply: BigInt
+  uniqueUserCount: BigInt
+}
+
+type Referrer @entity {
+  id: ID!
+  address: Bytes
+  totalReferralCount: BigInt
+  tokens: [ReferrerToken]! @derivedFrom(field: "referrer")
+}
+
+type ReferrerToken @entity {
+  id: ID!
+  referrer: Referrer
+  token: Token
+  referralCount: BigInt
+  referralTotal: BigInt
 }
