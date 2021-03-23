@@ -6,6 +6,7 @@
     "build": "graph build",
     "prepare": "mustache config/mainnet.json subgraph.template.yaml > subgraph.yaml",
     "deploy": "graph deploy --node https://api.thegraph.com/deploy/ --ipfs https://api.thegraph.com/ipfs/ AsafSilman/idle-finance",
+    "deployFromScratch": "yarn prepare && yarn codegen && yarn build && yarn deploy",
     "create-local": "graph create --node http://localhost:8020/ AsafSilman/idle-finance",
     "remove-local": "graph remove --node http://localhost:8020/ AsafSilman/idle-finance",
     "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 AsafSilman/idle-finance"

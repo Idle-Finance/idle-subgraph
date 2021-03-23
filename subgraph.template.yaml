@@ -25,7 +25,7 @@ dataSources:
       eventHandlers:
         - event: Transfer(indexed address,indexed address,uint256)
           handler: handleTransfer
-        - event: Referral(uint256,address);
+        - event: Referral(uint256,address)
           handler: handleReferral
       file: ./src/mapping.ts
   {{/tokens}}
