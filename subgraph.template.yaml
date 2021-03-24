@@ -19,6 +19,8 @@ dataSources:
         - User
         - UserToken
         - Token
+        - Referrer
+        - ReferrerToken
       abis:
         - name: IdleTokenGovernance
           file: ./abis/IdleTokenGovernance.json

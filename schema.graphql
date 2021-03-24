@@ -16,11 +16,17 @@ type Token @entity {
   id: ID!
   address: Bytes
   name: String
-  lastPrice: BigInt
+  decimals: BigInt
+  
+  
+  lastPrice: BigInt!
   lastPriceTimestamp: BigInt
 
   totalSupply: BigInt
   uniqueUserCount: BigInt
+
+  fee: BigInt!
+  totalFeeGenerated: BigInt
 }
 
 type Referrer @entity {

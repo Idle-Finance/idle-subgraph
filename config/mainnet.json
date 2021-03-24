@@ -5,6 +5,11 @@
         {"name": "idleUSDTBestYield", "address": "0xf34842d05a1c888ca02769a633df37177415c2f8", "startBlock": 10627792},
         {"name": "idleSUSDBestYield", "address": "0xf52cdcd458bf455aed77751743180ec4a595fd3f", "startBlock": 10628446},
         {"name": "idleTUSDBestYield", "address": "0xc278041fdd8249fe4c1aad1193876857eea3d68c", "startBlock": 10628641},
-        {"name": "idleWBTCBestYield", "address": "0x8c81121b15197fa0eeaee1dc75533419dcfd3151", "startBlock": 10627962}
+        {"name": "idleWBTCBestYield", "address": "0x8c81121b15197fa0eeaee1dc75533419dcfd3151", "startBlock": 10627962},
+        {"name": "IdleWETHBestYield", "address": "0xc8e6ca6e96a326dc448307a5fde90a0b21fd7f80", "startBlock": 11815164},
+
+        {"name": "idleDAIRiskAdjusted",  "address": "0xa14ea0e11121e6e951e87c66afe460a00bcd6a16", "startBlock": 10715806},
+        {"name": "IdleUSDCRiskAdjusted", "address": "0x3391bc034f2935ef0e1e41619445f998b2680d35", "startBlock": 10715830},
+        {"name": "IdleUSDTRiskAdjusted", "address": "0x28fac5334c9f7262b3a3fe707e250e01053e07b5", "startBlock": 10715861}
     ]
 }

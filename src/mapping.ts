@@ -1,6 +1,6 @@
 import { BigInt, Address, ethereum, store, log } from "@graphprotocol/graph-ts"
 
-import { ADDRESS_ZERO, TOKEN_MAPPING } from "./helpers"
+import { ADDRESS_ZERO } from "./helpers"
 
 import {
   Transfer as TransferEvent,
@@ -29,22 +29,19 @@ function getOrCreateToken(tokenAddress: Address): Token {
     token = new Token(tokenId)
 
     token.address = tokenAddress
+    let contract = IdleTokenGovernance.bind(tokenAddress)
     
-    let tokenName = "Default"
-    if (TOKEN_MAPPING.has(tokenAddress.toHexString())) {
-      tokenName = TOKEN_MAPPING.get(tokenAddress.toHexString())
-    }
-    else {
-      log.warning("Token {} does not exist in mapping", [tokenAddress.toHexString()])
-    }
-    
-    token.name = tokenName
+    token.name = contract.name()
+    token.decimals = BigInt.fromI32(contract.decimals())
 
-    token.lastPrice = BigInt.fromI32(1)
+    token.lastPrice = contract.tokenPrice()
     token.lastPriceTimestamp = BigInt.fromI32(0)
 
     token.totalSupply = BigInt.fromI32(0)
     token.uniqueUserCount = BigInt.fromI32(0)
+
+    token.fee = contract.fee()
+    token.totalFeeGenerated = BigInt.fromI32(0)
 
     token.save()
   }
@@ -122,7 +119,7 @@ function handleMint(event: TransferEvent): void {
   token.save()
 }
 
-function handleBurn(event: TransferEvent): void {
+function handleRedeem(event: TransferEvent): void {
   let token = getOrCreateToken(event.address)
   let user = getOrCreateUser(event.params.from, event.block)
 
@@ -154,8 +151,22 @@ export function handleTransfer(event: TransferEvent): void {
   let contract = IdleTokenGovernance.bind(event.address)
   let token = getOrCreateToken(event.address)
 
-  token.lastPrice = contract.tokenPrice()
+  // calculate token generated fee
+  let underlyingAUM = token.totalSupply * token.lastPrice // this is the underlying AUM
+  let currentTokenPrice = contract.tokenPrice()
+
+  log.debug("Last token price: {}. Current token price: {}", [token.lastPrice.toString(), currentTokenPrice.toString()])
+  let growth = ((underlyingAUM * currentTokenPrice) / token.lastPrice) - underlyingAUM
+  log.debug("Growth of pool {} was {}", [token.name, growth.toString()])
+  let generatedFee = (growth *  token.fee) / BigInt.fromI32(100000)
+  
+  // update token
+  token.totalFeeGenerated = token.totalFeeGenerated + generatedFee
+  token.lastPrice = currentTokenPrice
   token.lastPriceTimestamp = event.block.timestamp
+
+  // add handler for fee change
+  // token.fee = contract.fee()
 
   token.save()
   
@@ -164,13 +175,15 @@ export function handleTransfer(event: TransferEvent): void {
     handleMint(event)
   }
   else if (event.params.to.toHexString() == ADDRESS_ZERO) {
-    log.info("Burn Detected", [])
-    handleBurn(event)
+    log.info("Redeem Detected", [])
+    handleRedeem(event)
   }
   else {
     log.info("Transfer Detected", [])
     handleTokenTransfer(event)
   }
+
+
 }
 
 export function handleReferral(event: ReferralEvent): void {
