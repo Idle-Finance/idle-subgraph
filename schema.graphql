@@ -18,6 +18,9 @@ type Token @entity {
   name: String
   decimals: BigInt
   
+  underlyingTokenAddress: Bytes
+  underlyingTokenName: String
+  underlyingTokenDecimals: BigInt
   
   lastPrice: BigInt!
   lastPriceTimestamp: BigInt
@@ -26,7 +29,7 @@ type Token @entity {
   uniqueUserCount: BigInt
 
   fee: BigInt!
-  totalFeeGenerated: BigInt
+  totalFeeGeneratedInUnderlying: BigInt
 }
 
 type Referrer @entity {

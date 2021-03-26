@@ -1,12 +1,13 @@
 import { BigInt, Address, ethereum, store, log } from "@graphprotocol/graph-ts"
 
-import { ADDRESS_ZERO } from "./helpers"
+import { ADDRESS_ZERO, ONE_BI, ZERO_BI, exponentToBigInt } from "./helpers"
 
 import {
   Transfer as TransferEvent,
   Referral as ReferralEvent,
   IdleTokenGovernance
 } from "../generated/idleDAIBestYield/IdleTokenGovernance"
+import { erc20 } from "../generated/idleDAIBestYield/erc20"
 import { User, Token, UserToken, Referrer, ReferrerToken } from "../generated/schema"
 
 function getOrCreateUser(userAddress: Address, block: ethereum.Block): User {
@@ -27,21 +28,28 @@ function getOrCreateToken(tokenAddress: Address): Token {
   let token = Token.load(tokenId)
   if (token==null) {
     token = new Token(tokenId)
-
     token.address = tokenAddress
+
     let contract = IdleTokenGovernance.bind(tokenAddress)
+    let underlyingTokenAddress = contract.token()
+
+    let underlyingToken = erc20.bind(underlyingTokenAddress)
     
     token.name = contract.name()
     token.decimals = BigInt.fromI32(contract.decimals())
+    
+    token.underlyingTokenAddress = underlyingTokenAddress
+    token.underlyingTokenName = underlyingToken.name()
+    token.underlyingTokenDecimals = BigInt.fromI32(underlyingToken.decimals())
 
-    token.lastPrice = contract.tokenPrice()
-    token.lastPriceTimestamp = BigInt.fromI32(0)
+    token.lastPrice = exponentToBigInt(token.underlyingTokenDecimals as BigInt)
+    token.lastPriceTimestamp = ZERO_BI
 
-    token.totalSupply = BigInt.fromI32(0)
-    token.uniqueUserCount = BigInt.fromI32(0)
+    token.totalSupply = ZERO_BI
+    token.uniqueUserCount = ZERO_BI
 
     token.fee = contract.fee()
-    token.totalFeeGenerated = BigInt.fromI32(0)
+    token.totalFeeGeneratedInUnderlying = ZERO_BI
 
     token.save()
   }
@@ -59,11 +67,11 @@ function getOrCreateUserToken(user: User, token: Token): UserToken {
 
     userToken.user = user.id
     userToken.token = token.id
-    userToken.balance = BigInt.fromI32(0)
+    userToken.balance = ZERO_BI
 
     userToken.save()
 
-    token.uniqueUserCount = token.uniqueUserCount + BigInt.fromI32(1)
+    token.uniqueUserCount = token.uniqueUserCount + ONE_BI
     token.save()
   }
 
@@ -78,7 +86,7 @@ function getOrCreateReferrer(referrerAddress: Address): Referrer {
     referrer = new Referrer(referrerId)
 
     referrer.address = referrerAddress
-    referrer.totalReferralCount = BigInt.fromI32(0)
+    referrer.totalReferralCount = ZERO_BI
 
     referrer.save()
   }
@@ -97,8 +105,8 @@ function getOrCreateReferrerToken(referrer: Referrer, token: Token): ReferrerTok
 
     referrerToken.referrer = referrer.id
     referrerToken.token = token.id
-    referrerToken.referralCount = BigInt.fromI32(0)
-    referrerToken.referralTotal = BigInt.fromI32(0)
+    referrerToken.referralCount = ZERO_BI
+    referrerToken.referralTotal = ZERO_BI
 
     referrerToken.save()
   }
@@ -149,11 +157,33 @@ function handleTokenTransfer(event: TransferEvent): void {
 
 export function handleTransfer(event: TransferEvent): void {
   let contract = IdleTokenGovernance.bind(event.address)
+  let currentTokenPrice = contract.tokenPrice()
+
   let token = getOrCreateToken(event.address)
 
   // calculate token generated fee
-  let underlyingAUM = token.totalSupply * token.lastPrice // this is the underlying AUM
-  let currentTokenPrice = contract.tokenPrice()
+
+  if (currentTokenPrice < token.lastPrice) {
+    log.warning("Token seems to have decreased in value. CurrentPrice: {}, lastPrice: {}", [currentTokenPrice.toString(), token.lastPrice.toString()])
+    currentTokenPrice = token.lastPrice
+  }
+
+  // The underlying AUM as expressed in underlying decimals can be expressed as
+  //
+  // Example
+  // idleTokenDecimals = 18
+  // underlyingTokenDecimals = 8
+  //
+  // NOTE: totalSupply is expressed in idleTokenDecimals
+  //       tokenPrice is expressed in underlyingTokenDecimals
+  //
+  // AUM = totalSupply * tokenPrice / (10^idleTokenDecimals * 10^(idleTokenDecimals-underlyingTokenDecimals))
+  let idleTokenDecimals = token.decimals as BigInt
+  let underlyingTokenDecimals = token.underlyingTokenDecimals as BigInt
+  let exponentForUnderlying = idleTokenDecimals + (idleTokenDecimals - idleTokenDecimals)
+  
+  let decimalsForToken = exponentToBigInt(exponentForUnderlying)
+  let underlyingAUM = (token.totalSupply * token.lastPrice) / decimalsForToken  // this is the underlying AUM expressed in decimals for the underlying token
 
   log.debug("Last token price: {}. Current token price: {}", [token.lastPrice.toString(), currentTokenPrice.toString()])
   let growth = ((underlyingAUM * currentTokenPrice) / token.lastPrice) - underlyingAUM
@@ -161,7 +191,7 @@ export function handleTransfer(event: TransferEvent): void {
   let generatedFee = (growth *  token.fee) / BigInt.fromI32(100000)
   
   // update token
-  token.totalFeeGenerated = token.totalFeeGenerated + generatedFee
+  token.totalFeeGeneratedInUnderlying = token.totalFeeGeneratedInUnderlying + generatedFee
   token.lastPrice = currentTokenPrice
   token.lastPriceTimestamp = event.block.timestamp
 
@@ -182,8 +212,6 @@ export function handleTransfer(event: TransferEvent): void {
     log.info("Transfer Detected", [])
     handleTokenTransfer(event)
   }
-
-
 }
 
 export function handleReferral(event: ReferralEvent): void {
@@ -192,10 +220,10 @@ export function handleReferral(event: ReferralEvent): void {
 
   let referrerToken = getOrCreateReferrerToken(referrer, token)
 
-  referrer.totalReferralCount = referrer.totalReferralCount + BigInt.fromI32(1)
+  referrer.totalReferralCount = referrer.totalReferralCount + ONE_BI
   referrer.save()
 
-  referrerToken.referralCount = referrerToken.referralCount + BigInt.fromI32(1)
+  referrerToken.referralCount = referrerToken.referralCount + ONE_BI
   referrerToken.referralTotal = referrerToken.referralTotal + event.params._amount
 
   referrerToken.save()
