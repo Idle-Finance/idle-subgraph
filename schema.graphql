@@ -9,7 +9,9 @@ type UserToken @entity {
   id: ID!
   user: User
   token: Token
-  balance: BigInt
+  balance: BigInt # This is the balance of the idle token, NOT UNDERLYING BALANCE
+  totalProfitRedeemed: BigInt
+  totalFeePaidInUnderlying: BigInt
 }
 
 type Token @entity {
@@ -30,6 +32,7 @@ type Token @entity {
 
   fee: BigInt!
   totalFeeGeneratedInUnderlying: BigInt
+  totalFeePaidInUnderlying: BigInt
 }
 
 type Referrer @entity {

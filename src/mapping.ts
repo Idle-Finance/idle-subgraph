@@ -1,6 +1,7 @@
 import { BigInt, Address, ethereum, store, log } from "@graphprotocol/graph-ts"
 
 import { ADDRESS_ZERO, ONE_BI, ZERO_BI, exponentToBigInt } from "./helpers"
+import { getOrCreateUser, getOrCreateToken, getOrCreateUserToken, getOrCreateReferrer, getOrCreateReferrerToken } from "./getters"
 
 import {
   Transfer as TransferEvent,
@@ -9,110 +10,6 @@ import {
 } from "../generated/idleDAIBestYield/IdleTokenGovernance"
 import { erc20 } from "../generated/idleDAIBestYield/erc20"
 import { User, Token, UserToken, Referrer, ReferrerToken } from "../generated/schema"
-
-function getOrCreateUser(userAddress: Address, block: ethereum.Block): User {
-  let userId = userAddress.toHex()
-  let user = User.load(userId)
-  if (user==null) {
-    user = new User(userId)
-
-    user.address = userAddress
-    user.firstInteractionTimestamp = block.timestamp
-    user.save()
-  }
-  return user as User
-}
-
-function getOrCreateToken(tokenAddress: Address): Token {
-  let tokenId = tokenAddress.toHex()
-  let token = Token.load(tokenId)
-  if (token==null) {
-    token = new Token(tokenId)
-    token.address = tokenAddress
-
-    let contract = IdleTokenGovernance.bind(tokenAddress)
-    let underlyingTokenAddress = contract.token()
-
-    let underlyingToken = erc20.bind(underlyingTokenAddress)
-    
-    token.name = contract.name()
-    token.decimals = BigInt.fromI32(contract.decimals())
-    
-    token.underlyingTokenAddress = underlyingTokenAddress
-    token.underlyingTokenName = underlyingToken.name()
-    token.underlyingTokenDecimals = BigInt.fromI32(underlyingToken.decimals())
-
-    token.lastPrice = exponentToBigInt(token.underlyingTokenDecimals as BigInt)
-    token.lastPriceTimestamp = ZERO_BI
-
-    token.totalSupply = ZERO_BI
-    token.uniqueUserCount = ZERO_BI
-
-    token.fee = contract.fee()
-    token.totalFeeGeneratedInUnderlying = ZERO_BI
-
-    token.save()
-  }
-  return token as Token
-}
-
-function getOrCreateUserToken(user: User, token: Token): UserToken {
-  let userTokenId = user.id.toString()
-    .concat("-")
-    .concat(token.id.toString())
-
-  let userToken = UserToken.load(userTokenId)
-  if (userToken == null) {
-    userToken = new UserToken(userTokenId)
-
-    userToken.user = user.id
-    userToken.token = token.id
-    userToken.balance = ZERO_BI
-
-    userToken.save()
-
-    token.uniqueUserCount = token.uniqueUserCount + ONE_BI
-    token.save()
-  }
-
-  return userToken as UserToken
-}
-
-function getOrCreateReferrer(referrerAddress: Address): Referrer {
-  let referrerId = referrerAddress.toHex()
-  let referrer = Referrer.load(referrerId)
-
-  if (referrer == null) {
-    referrer = new Referrer(referrerId)
-
-    referrer.address = referrerAddress
-    referrer.totalReferralCount = ZERO_BI
-
-    referrer.save()
-  }
-
-  return referrer as Referrer
-}
-
-function getOrCreateReferrerToken(referrer: Referrer, token: Token): ReferrerToken {
-  let referrerTokenId = referrer.id.toString()
-    .concat("-")
-    .concat(token.id.toString())
-
-  let referrerToken = ReferrerToken.load(referrerTokenId)
-  if (referrerToken == null) {
-    referrerToken = new ReferrerToken(referrerTokenId)
-
-    referrerToken.referrer = referrer.id
-    referrerToken.token = token.id
-    referrerToken.referralCount = ZERO_BI
-    referrerToken.referralTotal = ZERO_BI
-
-    referrerToken.save()
-  }
-
-  return referrerToken as ReferrerToken
-}
 
 function handleMint(event: TransferEvent): void {
   let token = getOrCreateToken(event.address)
@@ -133,10 +30,25 @@ function handleRedeem(event: TransferEvent): void {
 
   let userToken = getOrCreateUserToken(user, token)
 
-  userToken.balance = userToken.balance - event.params.value;
+  // process fee
+  let contract = IdleTokenGovernance.bind(token.address as Address)
+  let userAveragePrice = contract.userAvgPrices(user.address as Address) // this is expressed in underlying decimals
+
+  let tokenDecimals = token.decimals as BigInt // this is in token decimals
+  let tokenToUnderlyingDenom = exponentToBigInt(tokenDecimals)
+
+  let tokenBalance = userToken.balance as BigInt
+
+  let profit = tokenBalance * (token.lastPrice - userAveragePrice) / tokenToUnderlyingDenom // to convert decimals from idle token to underlying
+  let fee = (profit * token.fee) / BigInt.fromI32(100000)
+
+  userToken.totalProfitRedeemed = userToken.totalProfitRedeemed + profit
+  userToken.totalFeePaidInUnderlying = userToken.totalFeePaidInUnderlying + fee
+  userToken.balance = userToken.balance - event.params.value
   userToken.save()
 
   token.totalSupply = token.totalSupply - event.params.value
+  token.totalFeePaidInUnderlying = token.totalFeePaidInUnderlying + fee
   token.save()
 }
 
@@ -176,13 +88,9 @@ export function handleTransfer(event: TransferEvent): void {
   //
   // NOTE: totalSupply is expressed in idleTokenDecimals
   //       tokenPrice is expressed in underlyingTokenDecimals
-  //
-  // AUM = totalSupply * tokenPrice / (10^idleTokenDecimals * 10^(idleTokenDecimals-underlyingTokenDecimals))
   let idleTokenDecimals = token.decimals as BigInt
-  let underlyingTokenDecimals = token.underlyingTokenDecimals as BigInt
-  let exponentForUnderlying = idleTokenDecimals + (idleTokenDecimals - idleTokenDecimals)
   
-  let decimalsForToken = exponentToBigInt(exponentForUnderlying)
+  let decimalsForToken = exponentToBigInt(idleTokenDecimals)
   let underlyingAUM = (token.totalSupply * token.lastPrice) / decimalsForToken  // this is the underlying AUM expressed in decimals for the underlying token
 
   log.debug("Last token price: {}. Current token price: {}", [token.lastPrice.toString(), currentTokenPrice.toString()])
@@ -196,7 +104,9 @@ export function handleTransfer(event: TransferEvent): void {
   token.lastPriceTimestamp = event.block.timestamp
 
   // add handler for fee change
-  // token.fee = contract.fee()
+  // The growth needs to be calculated using the previous fee value
+  // therefore the fee is set after the previous steps
+  token.fee = contract.fee()
 
   token.save()
   
