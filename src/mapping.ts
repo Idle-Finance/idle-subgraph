@@ -89,12 +89,14 @@ export function handleTransfer(event: TransferEvent): void {
   // NOTE: totalSupply is expressed in idleTokenDecimals
   //       tokenPrice is expressed in underlyingTokenDecimals
   let idleTokenDecimals = token.decimals as BigInt
+  let underlyingTokenDecimals = token.underlyingTokenDecimals as BigInt
   
   let decimalsForToken = exponentToBigInt(idleTokenDecimals)
-  let underlyingAUM = (token.totalSupply * token.lastPrice) / decimalsForToken  // this is the underlying AUM expressed in decimals for the underlying token
+  let decimalsForUnderlyingToken = exponentToBigInt(underlyingTokenDecimals)
+  let underlyingAUM = (token.totalSupply * token.lastPrice) / decimalsForToken // this is the underlying AUM expressed in decimals for the underlying token
 
   log.debug("Last token price: {}. Current token price: {}", [token.lastPrice.toString(), currentTokenPrice.toString()])
-  let growth = ((underlyingAUM * currentTokenPrice) / token.lastPrice) - underlyingAUM
+  let growth = underlyingAUM * (currentTokenPrice - token.lastPrice) / decimalsForUnderlyingToken // Expressed in underlying
   log.debug("Growth of pool {} was {}", [token.name, growth.toString()])
   let generatedFee = (growth *  token.fee) / BigInt.fromI32(100000)
   
