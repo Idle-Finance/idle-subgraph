@@ -35,6 +35,35 @@ type Token @entity {
   totalFeePaidInUnderlying: BigInt
 }
 
+type Redeem @entity {
+  id: ID!
+  tx: Bytes
+  token: Token
+  user: User
+  amount: BigInt
+  blockHeight: BigInt
+  feeInUnderlying: BigInt
+}
+
+type Transfer @entity {
+  id: ID!
+  tx: Bytes
+  token: Token
+  userFrom: User
+  userTo: User
+  amount: BigInt
+  blockHeight: BigInt
+}
+
+type Mint @entity {
+  id: ID!
+  tx: Bytes
+  token: Token
+  user: User
+  amount: BigInt
+  blockHeight: BigInt
+}
+
 type Referrer @entity {
   id: ID!
   address: Bytes

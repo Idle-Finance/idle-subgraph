@@ -9,7 +9,7 @@ import {
   IdleTokenGovernance
 } from "../generated/idleDAIBestYield/IdleTokenGovernance"
 import { erc20 } from "../generated/idleDAIBestYield/erc20"
-import { User, Token, UserToken, Referrer, ReferrerToken } from "../generated/schema"
+import { User, Token, UserToken, Redeem, Mint, Transfer, Referrer, ReferrerToken } from "../generated/schema"
 
 function handleMint(event: TransferEvent): void {
   let token = getOrCreateToken(event.address)
@@ -22,6 +22,16 @@ function handleMint(event: TransferEvent): void {
 
   token.totalSupply = token.totalSupply + event.params.value
   token.save()
+
+  let mintId = event.transaction.hash.toHex().concat('-').concat(event.logIndex.toString())
+  let mint = new Mint(mintId)
+  mint.tx = event.transaction.hash
+  mint.token = token.id
+  mint.user = user.id
+  mint.amount = event.params.value
+  mint.blockHeight = event.block.number
+
+  mint.save()
 }
 
 function handleRedeem(event: TransferEvent): void {
@@ -37,9 +47,7 @@ function handleRedeem(event: TransferEvent): void {
   let tokenDecimals = token.decimals as BigInt // this is in token decimals
   let tokenToUnderlyingDenom = exponentToBigInt(tokenDecimals)
 
-  let tokenBalance = userToken.balance as BigInt
-
-  let profit = tokenBalance * (token.lastPrice - userAveragePrice) / tokenToUnderlyingDenom // to convert decimals from idle token to underlying
+  let profit = event.params.value * (token.lastPrice - userAveragePrice) / tokenToUnderlyingDenom // to convert decimals from idle token to underlying
   let fee = (profit * token.fee) / BigInt.fromI32(100000)
 
   userToken.totalProfitRedeemed = userToken.totalProfitRedeemed + profit
@@ -50,6 +58,17 @@ function handleRedeem(event: TransferEvent): void {
   token.totalSupply = token.totalSupply - event.params.value
   token.totalFeePaidInUnderlying = token.totalFeePaidInUnderlying + fee
   token.save()
+
+  let redeemId = event.transaction.hash.toHex().concat('-').concat(event.logIndex.toString())
+  let redeem = new Redeem(redeemId)
+  redeem.tx = event.transaction.hash
+  redeem.token = token.id
+  redeem.user = user.id
+  redeem.amount = event.params.value
+  redeem.feeInUnderlying = fee
+  redeem.blockHeight = event.block.number
+
+  redeem.save()
 }
 
 function handleTokenTransfer(event: TransferEvent): void {
@@ -64,7 +83,18 @@ function handleTokenTransfer(event: TransferEvent): void {
   userTokenTo.balance = userTokenTo.balance + event.params.value
 
   userTokenFrom.save()  
-  userTokenTo.save()  
+  userTokenTo.save()
+  
+  let transferId = event.transaction.hash.toHex().concat('-').concat(event.logIndex.toString())
+  let transfer = new Transfer(transferId)
+  transfer.tx = event.transaction.hash
+  transfer.token = token.id
+  transfer.userFrom = userTokenFrom.id
+  transfer.userTo = userTokenTo.id
+  transfer.amount = event.params.value
+  transfer.blockHeight = event.block.number
+
+  transfer.save()
 }
 
 export function handleTransfer(event: TransferEvent): void {
