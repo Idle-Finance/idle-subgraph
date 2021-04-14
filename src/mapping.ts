@@ -184,14 +184,15 @@ export function handleReferral(event: ReferralEvent): void {
   referral.tx = txHash
   if (mint != null) {
     referral.mint = mint.id
-    referral.token = mint.token
     referral.user = mint.user
+    referral.token = mint.token
   } else {
     log.error("Could not find mint for referral. tx: {}", [txHash.toHex()])
   }
 
   referral.referredTokenAmountInUnderlying = event.params._amount
   referral.referrer = referrer.id
+  referral.blockHeight = event.block.number
   referral.save()
 }
 
