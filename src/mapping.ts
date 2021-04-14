@@ -1,4 +1,4 @@
-import { BigInt, Address, ethereum, store, log } from "@graphprotocol/graph-ts"
+import { BigInt, Address, ethereum, store, log, ByteArray, Bytes } from "@graphprotocol/graph-ts"
 
 import { ADDRESS_ZERO, ONE_BI, ZERO_BI, exponentToBigInt } from "./helpers"
 import { getOrCreateUser, getOrCreateToken, getOrCreateUserToken, getOrCreateReferrer, getOrCreateReferrerToken } from "./getters"
@@ -6,10 +6,11 @@ import { getOrCreateUser, getOrCreateToken, getOrCreateUserToken, getOrCreateRef
 import {
   Transfer as TransferEvent,
   Referral as ReferralEvent,
+  Rebalance as RebalanceEvent,
   IdleTokenGovernance
 } from "../generated/idleDAIBestYield/IdleTokenGovernance"
 import { erc20 } from "../generated/idleDAIBestYield/erc20"
-import { User, Token, UserToken, Redeem, Mint, Transfer, Referrer, ReferrerToken } from "../generated/schema"
+import { User, Token, UserToken, Redeem, Mint, Transfer, Referrer, ReferrerToken, Rebalance, Referral } from "../generated/schema"
 
 function handleMint(event: TransferEvent): void {
   let token = getOrCreateToken(event.address)
@@ -162,11 +163,71 @@ export function handleReferral(event: ReferralEvent): void {
 
   let referrerToken = getOrCreateReferrerToken(referrer, token)
 
+  let txHash = event.transaction.hash
+  let logId = event.logIndex - BigInt.fromI32(1)
+  let mint = null as Mint | null
+  
+  // handle case if multiple referrals on the same tx
+  while (logId > ZERO_BI) {
+    mint = Mint.load(txHash.toHex().concat('-').concat(logId.toString()))
+    if (mint != null) {break}
+  }
+
   referrer.totalReferralCount = referrer.totalReferralCount + ONE_BI
-  referrer.save()
 
   referrerToken.referralCount = referrerToken.referralCount + ONE_BI
   referrerToken.referralTotal = referrerToken.referralTotal + event.params._amount
 
   referrerToken.save()
+
+  let referral = new Referral(txHash.toHex().concat('-').concat(event.logIndex.toString()))
+  referral.tx = txHash
+  if (mint != null) {
+    referral.mint = mint.id
+    referral.token = mint.token
+    referral.user = mint.user
+  } else {
+    log.error("Could not find mint for referral. tx: {}", [txHash.toHex()])
+  }
+
+  referral.referredTokenAmountInUnderlying = event.params._amount
+  referral.referrer = referrer.id
+  referral.save()
+}
+
+export function handleRebalance(event: RebalanceEvent): void {
+  let token = getOrCreateToken(event.address)
+
+  let rebalanceId = event.transaction.hash.toHex().concat('-').concat(event.logIndex.toString())
+  let rebalance = new Rebalance(rebalanceId)
+
+  let tokenContract = IdleTokenGovernance.bind(event.address)
+  
+  let tokenAllocations = new Array<BigInt>()
+  let lendingTokens = new Array<Bytes>()
+
+  let index = BigInt.fromI32(0)
+  while (true) {
+    let lastAllocationCall = tokenContract.try_lastAllocations(index)
+    if (lastAllocationCall.reverted) {break}
+
+    let lendingToken = tokenContract.allAvailableTokens(index) as Address
+
+    tokenAllocations.push(lastAllocationCall.value)
+    lendingTokens.push(lendingToken)
+
+    index = index + ONE_BI
+  }
+
+  rebalance.allocation = tokenAllocations
+  rebalance.lendingTokens = lendingTokens
+
+  rebalance.token = token.id
+  rebalance.amountRebalances = event.params._amount
+  rebalance.blockHeight = event.block.number
+
+  rebalance.save()
+
+  token.totalRebalances = token.totalRebalances + ONE_BI
+  token.save()
 }

@@ -33,6 +33,8 @@ type Token @entity {
   fee: BigInt!
   totalFeeGeneratedInUnderlying: BigInt
   totalFeePaidInUnderlying: BigInt
+
+  totalRebalances: BigInt
 }
 
 type Redeem @entity {
@@ -64,11 +66,33 @@ type Mint @entity {
   blockHeight: BigInt
 }
 
+type Rebalance @entity {
+  id: ID!
+  token: Token
+  allocation: [BigInt!]
+  lendingTokens: [Bytes!]
+  amountRebalances: BigInt
+
+  blockHeight: BigInt
+}
+
 type Referrer @entity {
   id: ID!
   address: Bytes
   totalReferralCount: BigInt
   tokens: [ReferrerToken]! @derivedFrom(field: "referrer")
+}
+
+type Referral @entity {
+  id: ID!
+  tx: Bytes!
+  mint: Mint
+  token: Token
+  user: User
+  referrer: Referrer!
+
+  referredTokenAmountInUnderlying: BigInt!
+  blockHeight: BigInt!
 }
 
 type ReferrerToken @entity {

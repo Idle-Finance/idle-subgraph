@@ -48,6 +48,8 @@ export function getOrCreateToken(tokenAddress: Address): Token {
     token.totalFeeGeneratedInUnderlying = ZERO_BI
     token.totalFeePaidInUnderlying = ZERO_BI
 
+    token.totalRebalances = ZERO_BI
+
     token.save()
   }
   return token as Token

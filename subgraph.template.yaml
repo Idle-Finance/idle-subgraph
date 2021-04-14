@@ -31,5 +31,7 @@ dataSources:
           handler: handleTransfer
         - event: Referral(uint256,address)
           handler: handleReferral
+        - event: Rebalance(address,uint256)
+          handler: handleRebalance
       file: ./src/mapping.ts
   {{/tokens}}
