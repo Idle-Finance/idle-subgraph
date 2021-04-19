@@ -1,13 +1,15 @@
 import { BigInt, Address, ethereum, store, log, ByteArray, Bytes } from "@graphprotocol/graph-ts"
 
 import { ADDRESS_ZERO, ONE_BI, ZERO_BI, exponentToBigInt } from "./helpers"
-import { getOrCreateUser,
+import {
+  getOrCreateUser,
   getOrCreateToken,
   getOrCreateUserToken,
   getOrCreateReferrer, 
   getOrCreateReferrerToken,
   getOrCreateReferrerUserToken,
-  getReferrerUserToken
+  getReferrerUserToken,
+  getOrCreateStats
 } from "./getters"
 
 import {
@@ -40,6 +42,10 @@ function handleMint(event: TransferEvent): void {
   mint.blockHeight = event.block.number
 
   mint.save()
+
+  let s = getOrCreateStats()
+  s.totalMints = s.totalMints + ONE_BI
+  s.save()
 }
 
 function handleRedeem(event: TransferEvent): void {
@@ -98,6 +104,11 @@ function handleRedeem(event: TransferEvent): void {
     referrerUserToken.save()
     referrerToken.save()
   }
+
+  let s = getOrCreateStats()
+  s.totalRedeems = s.totalRedeems + ONE_BI
+  s.save()
+
 }
 
 function handleTokenTransfer(event: TransferEvent): void {
@@ -231,6 +242,10 @@ export function handleReferral(event: ReferralEvent): void {
   referral.referrer = referrer.id
   referral.blockHeight = event.block.number
   referral.save()
+
+  let s = getOrCreateStats()
+  s.totalReferrals = s.totalReferrals + ONE_BI
+  s.save()
 }
 
 export function handleRebalance(event: RebalanceEvent): void {
@@ -268,4 +283,8 @@ export function handleRebalance(event: RebalanceEvent): void {
 
   token.totalRebalances = token.totalRebalances + ONE_BI
   token.save()
+
+  let s = getOrCreateStats()
+  s.totalRebalances = s.totalRebalances + ONE_BI
+  s.save()
 }

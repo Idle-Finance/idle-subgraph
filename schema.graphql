@@ -115,3 +115,13 @@ type ReferrerUserToken @entity {
 
   balance: BigInt! # In IDLE Tokens
 }
+
+# Singleton
+type Stats @entity {
+  id: ID!
+  totalUniqueUsers: BigInt!
+  totalMints: BigInt!
+  totalRedeems: BigInt!
+  totalReferrals: BigInt!
+  totalRebalances: BigInt! 
+}

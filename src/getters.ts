@@ -2,9 +2,25 @@ import { BigInt, Address, ethereum } from "@graphprotocol/graph-ts"
 
 import { ONE_BI, ZERO_BI, exponentToBigInt } from "./helpers"
 
-import { User, Token, UserToken, Referrer, ReferrerToken, ReferrerUserToken } from "../generated/schema"
+import { User, Token, UserToken, Referrer, ReferrerToken, ReferrerUserToken, Stats } from "../generated/schema"
 import { erc20 } from "../generated/idleDAIBestYield/erc20"
 import { IdleTokenGovernance } from "../generated/idleDAIBestYield/IdleTokenGovernance"
+
+export function getOrCreateStats(): Stats {
+  let stats = Stats.load('singleton')
+  if (stats == null) {
+    stats = new Stats('singleton')
+    stats.totalMints = ZERO_BI
+    stats.totalRebalances = ZERO_BI
+    stats.totalRedeems = ZERO_BI
+    stats.totalReferrals = ZERO_BI
+    stats.totalUniqueUsers = ZERO_BI
+
+    stats.save()
+  }
+
+  return stats as Stats
+}
 
 export function getOrCreateUser(userAddress: Address, block: ethereum.Block): User {
   let userId = userAddress.toHex()
@@ -15,6 +31,10 @@ export function getOrCreateUser(userAddress: Address, block: ethereum.Block): Us
     user.address = userAddress
     user.firstInteractionTimestamp = block.timestamp
     user.save()
+
+    let s = getOrCreateStats()
+    s.totalUniqueUsers = s.totalUniqueUsers + ONE_BI
+    s.save()
   }
   return user as User
 }
