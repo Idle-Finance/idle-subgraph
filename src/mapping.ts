@@ -1,7 +1,14 @@
 import { BigInt, Address, ethereum, store, log, ByteArray, Bytes } from "@graphprotocol/graph-ts"
 
 import { ADDRESS_ZERO, ONE_BI, ZERO_BI, exponentToBigInt } from "./helpers"
-import { getOrCreateUser, getOrCreateToken, getOrCreateUserToken, getOrCreateReferrer, getOrCreateReferrerToken } from "./getters"
+import { getOrCreateUser,
+  getOrCreateToken,
+  getOrCreateUserToken,
+  getOrCreateReferrer, 
+  getOrCreateReferrerToken,
+  getOrCreateReferrerUserToken,
+  getReferrerUserToken
+} from "./getters"
 
 import {
   Transfer as TransferEvent,
@@ -40,6 +47,23 @@ function handleRedeem(event: TransferEvent): void {
   let user = getOrCreateUser(event.params.from, event.block)
 
   let userToken = getOrCreateUserToken(user, token)
+  let referrerUserToken = getReferrerUserToken(user, token)
+
+  if (referrerUserToken != null) {
+    let referrer = Referrer.load(referrerUserToken.referrer) as Referrer
+    let referrerToken = getOrCreateReferrerToken(referrer, token)
+
+    if (event.params.value > referrerUserToken.balance) {
+      let diff = referrerUserToken.balance
+
+      referrerUserToken.balance = referrerUserToken.balance - diff
+      referrerToken.totalBalance = referrerToken.totalBalance - diff
+    } else {
+      referrerUserToken.balance = referrerUserToken.balance - event.params.value
+    }
+
+    referrerUserToken.save()
+  }
 
   // process fee
   let contract = IdleTokenGovernance.bind(token.address as Address)
@@ -176,7 +200,7 @@ export function handleReferral(event: ReferralEvent): void {
   referrer.totalReferralCount = referrer.totalReferralCount + ONE_BI
 
   referrerToken.referralCount = referrerToken.referralCount + ONE_BI
-  referrerToken.referralTotal = referrerToken.referralTotal + event.params._amount
+  referrerToken.totalBalance = referrerToken.totalBalance + event.params._amount
 
   referrerToken.save()
 
@@ -189,6 +213,15 @@ export function handleReferral(event: ReferralEvent): void {
   } else {
     log.error("Could not find mint for referral. tx: {}", [txHash.toHex()])
   }
+
+  let referrerUserToken = getOrCreateReferrerUserToken(
+    referrer,
+    User.load(referral.user) as User,
+    Token.load(referral.token) as Token
+    
+  )
+  referrerUserToken.balance = referrerUserToken.balance + event.params._amount
+  referrerUserToken.save()
 
   referral.referredTokenAmountInUnderlying = event.params._amount
   referral.referrer = referrer.id

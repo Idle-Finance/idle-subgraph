@@ -3,6 +3,7 @@ type User @entity {
   address: Bytes
   firstInteractionTimestamp: BigInt
   tokens: [UserToken]! @derivedFrom(field: "user")
+  referredTokens: [ReferrerUserToken]! @derivedFrom(field: "user")
 }
 
 type UserToken @entity {
@@ -95,10 +96,23 @@ type Referral @entity {
   blockHeight: BigInt!
 }
 
+# Referrer idle token stats
 type ReferrerToken @entity {
   id: ID!
-  referrer: Referrer
-  token: Token
+  referrer: Referrer!
+  token: Token!
   referralCount: BigInt
-  referralTotal: BigInt
+
+  totalBalance: BigInt
+  totalProfit: BigInt
+}
+
+type ReferrerUserToken @entity {
+  id: ID!
+  referrer: Referrer!
+  token: Token!
+  user: User!
+
+  balance: BigInt!
+
 }

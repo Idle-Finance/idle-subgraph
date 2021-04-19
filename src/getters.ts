@@ -2,7 +2,7 @@ import { BigInt, Address, ethereum } from "@graphprotocol/graph-ts"
 
 import { ONE_BI, ZERO_BI, exponentToBigInt } from "./helpers"
 
-import { User, Token, UserToken, Referrer, ReferrerToken } from "../generated/schema"
+import { User, Token, UserToken, Referrer, ReferrerToken, ReferrerUserToken } from "../generated/schema"
 import { erc20 } from "../generated/idleDAIBestYield/erc20"
 import { IdleTokenGovernance } from "../generated/idleDAIBestYield/IdleTokenGovernance"
 
@@ -108,10 +108,43 @@ export function getOrCreateReferrerToken(referrer: Referrer, token: Token): Refe
     referrerToken.referrer = referrer.id
     referrerToken.token = token.id
     referrerToken.referralCount = ZERO_BI
-    referrerToken.referralTotal = ZERO_BI
+    referrerToken.totalBalance = ZERO_BI
+
+    referrerToken.totalProfit = ZERO_BI
 
     referrerToken.save()
   }
 
   return referrerToken as ReferrerToken
+}
+
+export function getOrCreateReferrerUserToken(referrer: Referrer, user: User, token: Token): ReferrerUserToken {
+  let referrerUserTokenId = "Referral-"
+    .concat(user.id.toString())
+    .concat("-")
+    .concat(token.id.toString())
+  
+  let referrerUserToken = ReferrerUserToken.load(referrerUserTokenId)
+  if (referrerUserToken == null) {
+    referrerUserToken = new ReferrerUserToken(referrerUserTokenId)
+
+    referrerUserToken.referrer = referrer.id
+    referrerUserToken.user = user.id
+    referrerUserToken.token = token.id
+
+    referrerUserToken.balance = ZERO_BI
+
+    referrerUserToken.save()
+  }
+
+  return referrerUserToken as ReferrerUserToken
+}
+
+export function getReferrerUserToken(user: User, token: Token): ReferrerUserToken | null {
+  let referrerUserTokenId = "Referral-"
+    .concat(user.id.toString())
+    .concat("-")
+    .concat(token.id.toString())
+
+    return ReferrerUserToken.load(referrerUserTokenId)
 }
