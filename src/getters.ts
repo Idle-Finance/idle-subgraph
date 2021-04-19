@@ -2,14 +2,14 @@ import { BigInt, Address, ethereum } from "@graphprotocol/graph-ts"
 
 import { ONE_BI, ZERO_BI, exponentToBigInt } from "./helpers"
 
-import { User, Token, UserToken, Referrer, ReferrerToken, ReferrerUserToken, Stats } from "../generated/schema"
+import { User, Token, UserToken, Referrer, ReferrerToken, ReferrerUserToken, TotalStats } from "../generated/schema"
 import { erc20 } from "../generated/idleDAIBestYield/erc20"
 import { IdleTokenGovernance } from "../generated/idleDAIBestYield/IdleTokenGovernance"
 
-export function getOrCreateStats(): Stats {
-  let stats = Stats.load('singleton')
+export function getOrCreateStats(): TotalStats {
+  let stats = TotalStats.load('singleton')
   if (stats == null) {
-    stats = new Stats('singleton')
+    stats = new TotalStats('singleton')
     stats.totalMints = ZERO_BI
     stats.totalRebalances = ZERO_BI
     stats.totalRedeems = ZERO_BI
@@ -19,7 +19,7 @@ export function getOrCreateStats(): Stats {
     stats.save()
   }
 
-  return stats as Stats
+  return stats as TotalStats
 }
 
 export function getOrCreateUser(userAddress: Address, block: ethereum.Block): User {

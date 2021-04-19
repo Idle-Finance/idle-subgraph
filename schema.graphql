@@ -117,7 +117,7 @@ type ReferrerUserToken @entity {
 }
 
 # Singleton
-type Stats @entity {
+type TotalStats @entity {
   id: ID!
   totalUniqueUsers: BigInt!
   totalMints: BigInt!
