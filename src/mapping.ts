@@ -49,22 +49,6 @@ function handleRedeem(event: TransferEvent): void {
   let userToken = getOrCreateUserToken(user, token)
   let referrerUserToken = getReferrerUserToken(user, token)
 
-  if (referrerUserToken != null) {
-    let referrer = Referrer.load(referrerUserToken.referrer) as Referrer
-    let referrerToken = getOrCreateReferrerToken(referrer, token)
-
-    if (event.params.value > referrerUserToken.balance) {
-      let diff = referrerUserToken.balance
-
-      referrerUserToken.balance = referrerUserToken.balance - diff
-      referrerToken.totalBalance = referrerToken.totalBalance - diff
-    } else {
-      referrerUserToken.balance = referrerUserToken.balance - event.params.value
-    }
-
-    referrerUserToken.save()
-  }
-
   // process fee
   let contract = IdleTokenGovernance.bind(token.address as Address)
   let userAveragePrice = contract.userAvgPrices(user.address as Address) // this is expressed in underlying decimals
@@ -94,6 +78,26 @@ function handleRedeem(event: TransferEvent): void {
   redeem.blockHeight = event.block.number
 
   redeem.save()
+
+  // handle referrers
+  if (referrerUserToken != null) {
+    let referrer = Referrer.load(referrerUserToken.referrer) as Referrer
+    let referrerToken = getOrCreateReferrerToken(referrer, token)
+
+    let diff = event.params.value // in idle token
+    if (diff > referrerUserToken.balance) {
+      diff = referrerUserToken.balance
+    }
+
+    referrerUserToken.balance = referrerUserToken.balance - diff
+    referrerToken.totalBalance = referrerToken.totalBalance - diff
+
+    let referrerProfit = diff * (token.lastPrice - userAveragePrice) / tokenToUnderlyingDenom
+    referrerToken.totalProfitEarned = referrerToken.totalProfitEarned + referrerProfit
+
+    referrerUserToken.save()
+    referrerToken.save()
+  }
 }
 
 function handleTokenTransfer(event: TransferEvent): void {
@@ -218,9 +222,9 @@ export function handleReferral(event: ReferralEvent): void {
     referrer,
     User.load(referral.user) as User,
     Token.load(referral.token) as Token
-    
   )
-  referrerUserToken.balance = referrerUserToken.balance + event.params._amount
+
+  referrerUserToken.balance = referrerUserToken.balance + mint.amount // in IDLE tokens
   referrerUserToken.save()
 
   referral.referredTokenAmountInUnderlying = event.params._amount

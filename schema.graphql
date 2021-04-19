@@ -63,7 +63,7 @@ type Mint @entity {
   tx: Bytes
   token: Token
   user: User
-  amount: BigInt
+  amount: BigInt!
   blockHeight: BigInt
 }
 
@@ -103,8 +103,8 @@ type ReferrerToken @entity {
   token: Token!
   referralCount: BigInt
 
-  totalBalance: BigInt
-  totalProfit: BigInt
+  totalBalance: BigInt # In IDLE Tokens
+  totalProfitEarned: BigInt
 }
 
 type ReferrerUserToken @entity {
@@ -113,6 +113,5 @@ type ReferrerUserToken @entity {
   token: Token!
   user: User!
 
-  balance: BigInt!
-
+  balance: BigInt! # In IDLE Tokens
 }
