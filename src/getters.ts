@@ -110,7 +110,7 @@ export function getOrCreateReferrerToken(referrer: Referrer, token: Token): Refe
     referrerToken.referralCount = ZERO_BI
     referrerToken.totalBalance = ZERO_BI
 
-    referrerToken.totalProfitEarned = ZERO_BI
+    referrerToken.totalProfitEarnedInUnderlying = ZERO_BI
 
     referrerToken.save()
   }

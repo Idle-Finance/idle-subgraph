@@ -93,7 +93,7 @@ function handleRedeem(event: TransferEvent): void {
     referrerToken.totalBalance = referrerToken.totalBalance - diff
 
     let referrerProfit = diff * (token.lastPrice - userAveragePrice) / tokenToUnderlyingDenom
-    referrerToken.totalProfitEarned = referrerToken.totalProfitEarned + referrerProfit
+    referrerToken.totalProfitEarnedInUnderlying = referrerToken.totalProfitEarnedInUnderlying + referrerProfit
 
     referrerUserToken.save()
     referrerToken.save()
