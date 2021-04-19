@@ -215,7 +215,7 @@ export function handleReferral(event: ReferralEvent): void {
   referrer.totalReferralCount = referrer.totalReferralCount + ONE_BI
 
   referrerToken.referralCount = referrerToken.referralCount + ONE_BI
-  referrerToken.totalBalance = referrerToken.totalBalance + event.params._amount
+  referrerToken.totalBalance = referrerToken.totalBalance + mint.amount
 
   referrerToken.save()
 
